@@ -11,13 +11,13 @@ import ssl
 ssl._create_default_https_context = ssl._create_unverified_context
 
 from geopy.geocoders import Nominatim
-from instagram_private_api import Client as AppClient
-from instagram_private_api import ClientCookieExpiredError, ClientLoginRequiredError, ClientError, ClientThrottledError
-
+from instagrapi import Client as AppClient
+from instagrapi.exceptions import ClientError
 from prettytable import PrettyTable
 
 from src import printcolors as pc
 from src import config
+client = AppClient()
 
 
 class Osintgram:
@@ -35,45 +35,23 @@ class Osintgram:
     output_dir = "output"
 
 
-    def __init__(self, target, is_file, is_json, is_cli, output_dir, clear_cookies):
-        self.output_dir = output_dir or self.output_dir
-        Path(self.output_dir).mkdir(parents=True, exist_ok=True)
+    def __init__(self, target, is_cli):
         u = config.getUsername()
         p = config.getPassword()
-        self.clear_cookies(clear_cookies)
         self.cli_mode = is_cli
         if not is_cli:
           print("\nAttempt to login...")
         self.login(u, p)
         self.setTarget(target)
-        self.writeFile = is_file
-        self.jsonDump = is_json
-
-    def clear_cookies(self,clear_cookies):
-        if clear_cookies:
-            self.clear_cache()
 
     def setTarget(self, target):
         self.target = target
         user = self.get_user(target)
         self.target_id = user['id']
         self.is_private = user['is_private']
-        self.following = self.check_following()
+        self.following = self.check_following(config.getUsername())
         self.__printTargetBanner__()
 
-    def __get_feed__(self):
-        data = []
-
-        result = self.api.user_feed(str(self.target_id))
-        data.extend(result.get('items', []))
-
-        next_max_id = result.get('next_max_id')
-        while next_max_id:
-            results = self.api.user_feed(str(self.target_id), max_id=next_max_id)
-            data.extend(results.get('items', []))
-            next_max_id = results.get('next_max_id')
-
-        return data
 
     def __get_comments__(self, media_id):
         comments = []
@@ -91,7 +69,7 @@ class Osintgram:
 
     def __printTargetBanner__(self):
         pc.printout("\nLogged as ", pc.GREEN)
-        pc.printout(self.api.username, pc.CYAN)
+        pc.printout(config.getUsername(), pc.CYAN)
         pc.printout(". Target: ", pc.GREEN)
         pc.printout(str(self.target), pc.CYAN)
         pc.printout(" [" + str(self.target_id) + "]")
@@ -110,130 +88,130 @@ class Osintgram:
         self.setTarget(line)
         return
 
-    def get_addrs(self):
-        if self.check_private_profile():
-            return
+    # def get_addrs(self):
+    #     if self.check_private_profile():
+    #         return
 
-        pc.printout("Searching for target localizations...\n")
+    #     pc.printout("Searching for target localizations...\n")
 
-        data = self.__get_feed__()
+    #     data = self.__get_feed__()
 
-        locations = {}
+    #     locations = {}
 
-        for post in data:
-            if 'location' in post and post['location'] is not None:
-                if 'lat' in post['location'] and 'lng' in post['location']:
-                    lat = post['location']['lat']
-                    lng = post['location']['lng']
-                    locations[str(lat) + ', ' + str(lng)] = post.get('taken_at')
+    #     for post in data:
+    #         if 'location' in post and post['location'] is not None:
+    #             if 'lat' in post['location'] and 'lng' in post['location']:
+    #                 lat = post['location']['lat']
+    #                 lng = post['location']['lng']
+    #                 locations[str(lat) + ', ' + str(lng)] = post.get('taken_at')
 
-        address = {}
-        for k, v in locations.items():
-            details = self.geolocator.reverse(k)
-            unix_timestamp = datetime.datetime.fromtimestamp(v)
-            address[details.address] = unix_timestamp.strftime('%Y-%m-%d %H:%M:%S')
+    #     address = {}
+    #     for k, v in locations.items():
+    #         details = self.geolocator.reverse(k)
+    #         unix_timestamp = datetime.datetime.fromtimestamp(v)
+    #         address[details.address] = unix_timestamp.strftime('%Y-%m-%d %H:%M:%S')
 
-        sort_addresses = sorted(address.items(), key=lambda p: p[1], reverse=True)
+    #     sort_addresses = sorted(address.items(), key=lambda p: p[1], reverse=True)
 
-        if len(sort_addresses) > 0:
-            t = PrettyTable()
+    #     if len(sort_addresses) > 0:
+    #         t = PrettyTable()
 
-            t.field_names = ['Post', 'Address', 'time']
-            t.align["Post"] = "l"
-            t.align["Address"] = "l"
-            t.align["Time"] = "l"
-            pc.printout("\nWoohoo! We found " + str(len(sort_addresses)) + " addresses\n", pc.GREEN)
+    #         t.field_names = ['Post', 'Address', 'time']
+    #         t.align["Post"] = "l"
+    #         t.align["Address"] = "l"
+    #         t.align["Time"] = "l"
+    #         pc.printout("\nWoohoo! We found " + str(len(sort_addresses)) + " addresses\n", pc.GREEN)
 
-            i = 1
+    #         i = 1
 
-            json_data = {}
-            addrs_list = []
+    #         json_data = {}
+    #         addrs_list = []
 
-            for address, time in sort_addresses:
-                t.add_row([str(i), address, time])
+    #         for address, time in sort_addresses:
+    #             t.add_row([str(i), address, time])
 
-                if self.jsonDump:
-                    addr = {
-                        'address': address,
-                        'time': time
-                    }
-                    addrs_list.append(addr)
+    #             if self.jsonDump:
+    #                 addr = {
+    #                     'address': address,
+    #                     'time': time
+    #                 }
+    #                 addrs_list.append(addr)
 
-                i = i + 1
+    #             i = i + 1
 
-            if self.writeFile:
-                file_name = self.output_dir + "/" + self.target + "_addrs.txt"
-                file = open(file_name, "w")
-                file.write(str(t))
-                file.close()
+    #         if self.writeFile:
+    #             file_name = self.output_dir + "/" + self.target + "_addrs.txt"
+    #             file = open(file_name, "w")
+    #             file.write(str(t))
+    #             file.close()
 
-            if self.jsonDump:
-                json_data['address'] = addrs_list
-                json_file_name = self.output_dir + "/" + self.target + "_addrs.json"
-                with open(json_file_name, 'w') as f:
-                    json.dump(json_data, f)
+    #         if self.jsonDump:
+    #             json_data['address'] = addrs_list
+    #             json_file_name = self.output_dir + "/" + self.target + "_addrs.json"
+    #             with open(json_file_name, 'w') as f:
+    #                 json.dump(json_data, f)
 
-            print(t)
-        else:
-            pc.printout("Sorry! No results found :-(\n", pc.RED)
+    #         print(t)
+    #     else:
+    #         pc.printout("Sorry! No results found :-(\n", pc.RED)
 
-    def get_captions(self):
-        if self.check_private_profile():
-            return
+    # def get_captions(self):
+    #     if self.check_private_profile():
+    #         return
 
-        pc.printout("Searching for target captions...\n")
+    #     pc.printout("Searching for target captions...\n")
 
-        captions = []
+    #     captions = []
 
-        data = self.__get_feed__()
-        counter = 0
+    #     data = self.__get_feed__()
+    #     counter = 0
 
-        try:
-            for item in data:
-                if "caption" in item:
-                    if item["caption"] is not None:
-                        text = item["caption"]["text"]
-                        captions.append(text)
-                        counter = counter + 1
-                        sys.stdout.write("\rFound %i" % counter)
-                        sys.stdout.flush()
+    #     try:
+    #         for item in data:
+    #             if "caption" in item:
+    #                 if item["caption"] is not None:
+    #                     text = item["caption"]["text"]
+    #                     captions.append(text)
+    #                     counter = counter + 1
+    #                     sys.stdout.write("\rFound %i" % counter)
+    #                     sys.stdout.flush()
 
-        except AttributeError:
-            pass
+    #     except AttributeError:
+    #         pass
 
-        except KeyError:
-            pass
+    #     except KeyError:
+    #         pass
 
-        json_data = {}
+    #     json_data = {}
 
-        if counter > 0:
-            pc.printout("\nWoohoo! We found " + str(counter) + " captions\n", pc.GREEN)
+    #     if counter > 0:
+    #         pc.printout("\nWoohoo! We found " + str(counter) + " captions\n", pc.GREEN)
 
-            file = None
+    #         file = None
 
-            if self.writeFile:
-                file_name = self.output_dir + "/" + self.target + "_captions.txt"
-                file = open(file_name, "w")
+    #         if self.writeFile:
+    #             file_name = self.output_dir + "/" + self.target + "_captions.txt"
+    #             file = open(file_name, "w")
 
-            for s in captions:
-                print(s + "\n")
+    #         for s in captions:
+    #             print(s + "\n")
 
-                if self.writeFile:
-                    file.write(s + "\n")
+    #             if self.writeFile:
+    #                 file.write(s + "\n")
 
-            if self.jsonDump:
-                json_data['captions'] = captions
-                json_file_name = self.output_dir + "/" + self.target + "_followings.json"
-                with open(json_file_name, 'w') as f:
-                    json.dump(json_data, f)
+    #         if self.jsonDump:
+    #             json_data['captions'] = captions
+    #             json_file_name = self.output_dir + "/" + self.target + "_followings.json"
+    #             with open(json_file_name, 'w') as f:
+    #                 json.dump(json_data, f)
 
-            if file is not None:
-                file.close()
+    #         if file is not None:
+    #             file.close()
 
-        else:
-            pc.printout("Sorry! No results found :-(\n", pc.RED)
+    #     else:
+    #         pc.printout("Sorry! No results found :-(\n", pc.RED)
 
-        return
+    #     return
 
     def get_total_comments(self):
         if self.check_private_profile():
@@ -314,32 +292,25 @@ class Osintgram:
         if self.check_private_profile():
             return
 
-        pc.printout("Searching for target followers...\n")
+        pc.printout("Searching for target followers (this may take a while) ...\n")
 
         _followers = []
         followers = []
 
 
-        rank_token = AppClient.generate_uuid()
-        data = self.api.user_followers(str(self.target_id), rank_token=rank_token)
-
-        _followers.extend(data.get('users', []))
-
-        next_max_id = data.get('next_max_id')
-        while next_max_id:
-            sys.stdout.write("\rCatched %i followers" % len(_followers))
-            sys.stdout.flush()
-            results = self.api.user_followers(str(self.target_id), rank_token=rank_token, max_id=next_max_id)
-            _followers.extend(results.get('users', []))
-            next_max_id = results.get('next_max_id')
+        data = client.user_followers(str(self.target_id))
+        _followers.extend(data.values())
 
         print("\n")
+
+        
             
         for user in _followers:
+            userDict = user.dict()
             u = {
-                'id': user['pk'],
-                'username': user['username'],
-                'full_name': user['full_name']
+                'id': userDict['pk'],
+                'username': userDict['username'],
+                'full_name': userDict['full_name']
             }
             followers.append(u)
 
@@ -385,26 +356,17 @@ class Osintgram:
         _followings = []
         followings = []
 
-        rank_token = AppClient.generate_uuid()
-        data = self.api.user_following(str(self.target_id), rank_token=rank_token)
-
-        _followings.extend(data.get('users', []))
-
-        next_max_id = data.get('next_max_id')
-        while next_max_id:
-            sys.stdout.write("\rCatched %i followings" % len(_followings))
-            sys.stdout.flush()
-            results = self.api.user_following(str(self.target_id), rank_token=rank_token, max_id=next_max_id)
-            _followings.extend(results.get('users', []))
-            next_max_id = results.get('next_max_id')
+        data = client.user_following(str(self.target_id), 0)
+        _followings.extend(data.values())
 
         print("\n")
 
         for user in _followings:
+            userDict = user.dict()
             u = {
-                'id': user['pk'],
-                'username': user['username'],
-                'full_name': user['full_name']
+                'id': userDict['pk'],
+                'username': userDict['username'],
+                'full_name': userDict['full_name']
             }
             followings.append(u)
 
@@ -508,74 +470,36 @@ class Osintgram:
 
     def get_user_info(self):
         try:
-            endpoint = 'users/{user_id!s}/full_detail_info/'.format(**{'user_id': self.target_id})
-            content = self.api._call_api(endpoint)
-           
-            data = content['user_detail']['user']
+            content = client.user_info_by_username(self.target).dict()
+            
 
             pc.printout("[ID] ", pc.GREEN)
-            pc.printout(str(data['pk']) + '\n')
+            pc.printout(str(content['pk']) + '\n')
             pc.printout("[FULL NAME] ", pc.RED)
-            pc.printout(str(data['full_name']) + '\n')
+            pc.printout(str(content['full_name']) + '\n')
             pc.printout("[BIOGRAPHY] ", pc.CYAN)
-            pc.printout(str(data['biography']) + '\n')
+            pc.printout(str(content['biography']) + '\n')
             pc.printout("[FOLLOWED] ", pc.BLUE)
-            pc.printout(str(data['follower_count']) + '\n')
+            pc.printout(str(content['follower_count']) + '\n')
             pc.printout("[FOLLOW] ", pc.GREEN)
-            pc.printout(str(data['following_count']) + '\n')
+            pc.printout(str(content['following_count']) + '\n')
             pc.printout("[BUSINESS ACCOUNT] ", pc.RED)
-            pc.printout(str(data['is_business']) + '\n')
-            if data['is_business']:
-                if not data['can_hide_category']:
-                    pc.printout("[BUSINESS CATEGORY] ")
-                    pc.printout(str(data['category']) + '\n')
+            pc.printout(str(content['is_business']) + '\n')
             pc.printout("[VERIFIED ACCOUNT] ", pc.CYAN)
-            pc.printout(str(data['is_verified']) + '\n')
-            if 'public_email' in data and data['public_email']:
-                pc.printout("[EMAIL] ", pc.BLUE)
-                pc.printout(str(data['public_email']) + '\n')
+            pc.printout(str(content['is_verified']) + '\n')
             pc.printout("[HD PROFILE PIC] ", pc.GREEN)
-            pc.printout(str(data['hd_profile_pic_url_info']['url']) + '\n')
-            if 'fb_page_call_to_action_id' in data and data['fb_page_call_to_action_id']: 
-                pc.printout("[FB PAGE] ", pc.RED)
-                pc.printout(str(data['connected_fb_page']) + '\n')
-            if 'whatsapp_number' in data and data['whatsapp_number']:
-                pc.printout("[WHATSAPP NUMBER] ", pc.GREEN)
-                pc.printout(str(data['whatsapp_number']) + '\n')
-            if 'city_name' in data and data['city_name']:
-                pc.printout("[CITY] ", pc.YELLOW)
-                pc.printout(str(data['city_name']) + '\n')
-            if 'address_street' in data and data['address_street']:
-                pc.printout("[ADDRESS STREET] ", pc.RED)
-                pc.printout(str(data['address_street']) + '\n')
-            if 'contact_phone_number' in data and data['contact_phone_number']:
-                pc.printout("[CONTACT PHONE NUMBER] ", pc.CYAN)
-                pc.printout(str(data['contact_phone_number']) + '\n')
-
+            pc.printout(str(content['profile_pic_url']) + '\n')
             if self.jsonDump:
                 user = {
-                    'id': data['pk'],
-                    'full_name': data['full_name'],
-                    'biography': data['biography'],
-                    'edge_followed_by': data['follower_count'],
-                    'edge_follow': data['following_count'],
-                    'is_business_account': data['is_business'],
-                    'is_verified': data['is_verified'],
-                    'profile_pic_url_hd': data['hd_profile_pic_url_info']['url']
+                    'id': content['pk'],
+                    'full_name': content['full_name'],
+                    'biography': content['biography'],
+                    'edge_followed_by': content['follower_count'],
+                    'edge_follow': content['following_count'],
+                    'is_business_account': content['is_business'],
+                    'is_verified': content['is_verified'],
+                    'profile_pic_url_hd': content['profile_pic_url']
                 }
-                if 'public_email' in data and data['public_email']:
-                    user['email'] = data['public_email']
-                if 'fb_page_call_to_action_id' in data and data['fb_page_call_to_action_id']: 
-                    user['connected_fb_page'] = data['fb_page_call_to_action_id']
-                if 'whatsapp_number' in data and data['whatsapp_number']:
-                    user['whatsapp_number'] = data['whatsapp_number']
-                if 'city_name' in data and data['city_name']:
-                    user['city_name'] = data['city_name']
-                if 'address_street' in data and data['address_street']:
-                    user['address_street'] = data['address_street']
-                if 'contact_phone_number' in data and data['contact_phone_number']:
-                    user['contact_phone_number'] = data['contact_phone_number']
-
                 json_file_name = self.output_dir + "/" + self.target + "_info.json"
                 with open(json_file_name, 'w') as f:
                     json.dump(user, f)
@@ -1046,16 +970,10 @@ class Osintgram:
 
     def get_user(self, username):
         try:
-            content = self.api.username_info(username)
-            if self.writeFile:
-                file_name = self.output_dir + "/" + self.target + "_user_id.txt"
-                file = open(file_name, "w")
-                file.write(str(content['user']['pk']))
-                file.close()
-
             user = dict()
-            user['id'] = content['user']['pk']
-            user['is_private'] = content['user']['is_private']
+            content = client.user_info_by_username(username).dict()
+            user['id'] = content['pk']
+            user['is_private'] = content['is_private']
 
             return user
         except ClientError as e:
@@ -1096,33 +1014,7 @@ class Osintgram:
 
     def login(self, u, p):
         try:
-            settings_file = "config/settings.json"
-            if not os.path.isfile(settings_file):
-                # settings file does not exist
-                print(f'Unable to find file: {settings_file!s}')
-
-                # login new
-                self.api = AppClient(auto_patch=True, authenticate=True, username=u, password=p,
-                                     on_login=lambda x: self.onlogin_callback(x, settings_file))
-
-            else:
-                with open(settings_file) as file_data:
-                    cached_settings = json.load(file_data, object_hook=self.from_json)
-                # print('Reusing settings: {0!s}'.format(settings_file))
-
-                # reuse auth settings
-                self.api = AppClient(
-                    username=u, password=p,
-                    settings=cached_settings,
-                    on_login=lambda x: self.onlogin_callback(x, settings_file))
-
-        except (ClientCookieExpiredError, ClientLoginRequiredError) as e:
-            print(f'ClientCookieExpiredError/ClientLoginRequiredError: {e!s}')
-
-            # Login expired
-            # Do relogin but use default ua, keys and such
-            self.api = AppClient(auto_patch=True, authenticate=True, username=u, password=p,
-                                 on_login=lambda x: self.onlogin_callback(x, settings_file))
+            client.login(u, p)
 
         except ClientError as e:
             pc.printout('ClientError {0!s} (Code: {1:d}, Response: {2!s})'.format(e.msg, e.code, e.error_response), pc.RED)
@@ -1146,17 +1038,15 @@ class Osintgram:
             return codecs.decode(json_object['__value__'].encode(), 'base64')
         return json_object
 
-    def onlogin_callback(self, api, new_settings_file):
-        cache_settings = api.settings
-        with open(new_settings_file, 'w') as outfile:
-            json.dump(cache_settings, outfile, default=self.to_json)
-            # print('SAVED: {0!s}'.format(new_settings_file))
-
-    def check_following(self):
-        if str(self.target_id) == self.api.authenticated_user_id:
+    def check_following(self, username):
+        if str(self.target_id) == str(client.user_id_from_username(username)):
             return True
-        endpoint = 'users/{user_id!s}/full_detail_info/'.format(**{'user_id': self.target_id})
-        return self.api._call_api(endpoint)['user_detail']['user']['friendship_status']['following']
+        followingDict = client.user_following(client.user_id_from_username(username))
+        for user in followingDict:
+            print(user)
+            if str(self.target_id) == user:
+                return True
+        return False
 
     def check_private_profile(self):
         if self.is_private and not self.following:
@@ -1653,13 +1543,3 @@ class Osintgram:
                     json.dump(json_data, f)
         else:
             pc.printout("Sorry! No results found :-(\n", pc.RED)
-
-    def clear_cache(self):
-        try:
-            f = open("config/settings.json",'w')
-            f.write("{}")
-            pc.printout("Cache Cleared.\n",pc.GREEN)
-        except FileNotFoundError:
-            pc.printout("Settings.json don't exist.\n",pc.RED)
-        finally:
-            f.close()

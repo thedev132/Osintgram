@@ -18,24 +18,10 @@ except:
 
 def printlogo():
     pc.printout(artwork.ascii_art, pc.YELLOW)
-    pc.printout("\nVersion 1.1 - Developed by Giuseppe Criscione\n\n", pc.YELLOW)
+    pc.printout("\nVersion 1.0 - Developed by Mohamad Mortada and Giuseppe Criscione\n\n", pc.YELLOW)
     pc.printout("Type 'list' to show all allowed commands\n")
-    pc.printout("Type 'FILE=y' to save results to files like '<target username>_<command>.txt (default is disabled)'\n")
-    pc.printout("Type 'FILE=n' to disable saving to files'\n")
-    pc.printout("Type 'JSON=y' to export results to a JSON files like '<target username>_<command>.json (default is "
-                "disabled)'\n")
-    pc.printout("Type 'JSON=n' to disable exporting to files'\n")
-
 
 def cmdlist():
-    pc.printout("FILE=y/n\t")
-    print("Enable/disable output in a '<target username>_<command>.txt' file'")
-    pc.printout("JSON=y/n\t")
-    print("Enable/disable export in a '<target username>_<command>.json' file'")
-    pc.printout("addrs\t\t")
-    print("Get all registered addressed by target photos")
-    pc.printout("cache\t\t")
-    print("Clear cache of the tool")
     pc.printout("captions\t")
     print("Get target's photos captions")
     pc.printout("commentdata\t")
@@ -118,7 +104,7 @@ parser.add_argument('-o', '--output', help='where to store photos', action='stor
 args = parser.parse_args()
 
 
-api = Osintgram(args.id, args.file, args.json, args.command, args.output, args.cookies)
+api = Osintgram(args.id, args.command)
 
 
 
@@ -127,9 +113,6 @@ commands = {
     'help':             cmdlist,
     'quit':             _quit,
     'exit':             _quit,
-    'addrs':            api.get_addrs,
-    'cache':            api.clear_cache,
-    'captions':         api.get_captions,
     "commentdata":      api.get_comment_data,
     'comments':         api.get_total_comments,
     'followers':        api.get_followers,
