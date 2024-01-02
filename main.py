@@ -56,6 +56,8 @@ def cmdlist():
     print("Download target's profile picture")
     pc.printout("stories\t\t")
     print("Download target's stories")
+    pc.printout("highlights\t\t")
+    print("Download target's highlights")
     pc.printout("tagged\t\t")
     print("Get list of users tagged by target")
     pc.printout("target\t\t")
@@ -130,6 +132,7 @@ commands = {
     'propic':           api.get_user_propic,
     'stories':          api.get_user_stories,
     'tagged':           api.get_people_tagged_by_user,
+    'highlights':       api.get_user_highlights,
     'target':           api.change_target,
     'wcommented':       api.get_people_who_commented,
     'wtagged':          api.get_people_who_tagged

@@ -774,72 +774,16 @@ class Osintgram:
         if self.check_private_profile():
             return
 
-        limit = -1
-        if self.cli_mode:
-            user_input = ""
-        else:
-            pc.printout("How many photos you want to download (default all): ", pc.YELLOW)
-            user_input = input()
-          
+        pc.printout("Searching for target photos...\n")
+        profile = Loader.Profile.from_username(loader.context, self.target)
+        posts = profile.get_posts()
         try:
-            if user_input == "":
-                pc.printout("Downloading all photos available...\n")
-            else:
-                limit = int(user_input)
-                pc.printout("Downloading " + user_input + " photos...\n")
+            for post in posts:
+                loader.download_post(post, self.target)
+        except KeyboardInterrupt:
+            posts.freeze()
 
-        except ValueError:
-            pc.printout("Wrong value entered\n", pc.RED)
-            return
-
-        data = []
-        counter = 0
-
-        result = self.api.user_feed(str(self.target_id))
-        data.extend(result.get('items', []))
-
-        next_max_id = result.get('next_max_id')
-        while next_max_id:
-            results = self.api.user_feed(str(self.target_id), max_id=next_max_id)
-            data.extend(results.get('items', []))
-            next_max_id = results.get('next_max_id')
-
-        try:
-            for item in data:
-                if counter == limit:
-                    break
-                if "image_versions2" in item:
-                    counter = counter + 1
-                    url = item["image_versions2"]["candidates"][0]["url"]
-                    photo_id = item["id"]
-                    end = self.output_dir + "/" + self.target + "_" + photo_id + ".jpg"
-                    urllib.request.urlretrieve(url, end)
-                    sys.stdout.write("\rDownloaded %i" % counter)
-                    sys.stdout.flush()
-                else:
-                    carousel = item["carousel_media"]
-                    for i in carousel:
-                        if counter == limit:
-                            break
-                        counter = counter + 1
-                        url = i["image_versions2"]["candidates"][0]["url"]
-                        photo_id = i["id"]
-                        end = self.output_dir + "/" + self.target + "_" + photo_id + ".jpg"
-                        urllib.request.urlretrieve(url, end)
-                        sys.stdout.write("\rDownloaded %i" % counter)
-                        sys.stdout.flush()
-
-        except AttributeError:
-            pass
-
-        except KeyError:
-            pass
-
-        sys.stdout.write(" photos")
-        sys.stdout.flush()
-
-        pc.printout("\nWoohoo! We downloaded " + str(counter) + " photos (saved in " + self.output_dir + " folder) \n", pc.GREEN)
-
+        
     def get_user_propic(self):
         profile = Loader.Profile.from_username(loader.context, self.target)
         loader.download_profilepic(profile)
@@ -851,6 +795,15 @@ class Osintgram:
         pc.printout("Searching for target stories...\n")
         profile = Loader.Profile.from_username(loader.context, self.target)
         loader.download_stories([profile])
+
+    def get_user_highlights(self):
+        if self.check_private_profile():
+            return
+
+        pc.printout("Searching for target highlights...\n")
+        profile = Loader.Profile.from_username(loader.context, self.target)
+        loader.download_highlights(profile)
+
 
     def get_people_tagged_by_user(self):
         pc.printout("Searching for users tagged by target...\n")
