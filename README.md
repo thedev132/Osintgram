@@ -179,8 +179,8 @@ You can propose a feature request opening an issue or a pull request.
 
 Here is a list of Osintgram's contributors:
 
-<a href="https://github.com/Datalux/Osintgram/graphs/contributors">
-  <img src="https://contributors-img.web.app/image?repo=Datalux/Osintgram" />
+<a href="https://github.com/thedev132/Osintgram/graphs/contributors">
+  <img src="https://contributors-img.web.app/image?repo=thedev132/Osintgram" />
 </a>
 
 ## External library 🔗
