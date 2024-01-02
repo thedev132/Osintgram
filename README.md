@@ -7,6 +7,7 @@
 [![Docker](https://img.shields.io/badge/Docker-Supported-blue)](https://img.shields.io/badge/Docker-Supported-blue)
 
 Osintgram is a **OSINT** tool on Instagram to collect, analyze, and run reconnaissance.
+This tool is a rewrite of Datalux's Osintgram
 
 <p align="center">
 <img align="center" src=".img/carbon.png" width="900">
