@@ -5,6 +5,8 @@ import urllib
 import os
 import codecs
 from pathlib import Path
+import subprocess
+
 
 import requests
 import ssl
@@ -13,11 +15,14 @@ ssl._create_default_https_context = ssl._create_unverified_context
 from geopy.geocoders import Nominatim
 from instagrapi import Client as AppClient
 from instagrapi.exceptions import ClientError
+import instaloader as Loader
 from prettytable import PrettyTable
 
 from src import printcolors as pc
 from src import config
 client = AppClient()
+loader = Loader.Instaloader()
+
 
 
 class Osintgram:
@@ -302,8 +307,6 @@ class Osintgram:
         _followers.extend(data.values())
 
         print("\n")
-
-        
             
         for user in _followers:
             userDict = user.dict()
@@ -838,62 +841,16 @@ class Osintgram:
         pc.printout("\nWoohoo! We downloaded " + str(counter) + " photos (saved in " + self.output_dir + " folder) \n", pc.GREEN)
 
     def get_user_propic(self):
-
-        try:
-            endpoint = 'users/{user_id!s}/full_detail_info/'.format(**{'user_id': self.target_id})
-            content = self.api._call_api(endpoint)
-
-            data = content['user_detail']['user']
-
-            if "hd_profile_pic_url_info" in data:
-                URL = data["hd_profile_pic_url_info"]['url']
-            else:
-                #get better quality photo
-                items = len(data['hd_profile_pic_versions'])
-                URL = data["hd_profile_pic_versions"][items-1]['url']
-
-            if URL != "":
-                end = self.output_dir + "/" + self.target + "_propic.jpg"
-                urllib.request.urlretrieve(URL, end)
-                pc.printout("Target propic saved in output folder\n", pc.GREEN)
-
-            else:
-                pc.printout("Sorry! No results found :-(\n", pc.RED)
-        
-        except ClientError as e:
-            error = json.loads(e.error_response)
-            print(error['message'])
-            print(error['error_title'])
-            exit(2)
+        profile = Loader.Profile.from_username(loader.context, self.target)
+        loader.download_profilepic(profile)
 
     def get_user_stories(self):
         if self.check_private_profile():
             return
 
         pc.printout("Searching for target stories...\n")
-
-        data = self.api.user_reel_media(str(self.target_id))
-
-        counter = 0
-
-        if data['items'] is not None:  # no stories avaibile
-            counter = data['media_count']
-            for i in data['items']:
-                story_id = i["id"]
-                if i["media_type"] == 1:  # it's a photo
-                    url = i['image_versions2']['candidates'][0]['url']
-                    end = self.output_dir + "/" + self.target + "_" + story_id + ".jpg"
-                    urllib.request.urlretrieve(url, end)
-
-                elif i["media_type"] == 2:  # it's a gif or video
-                    url = i['video_versions'][0]['url']
-                    end = self.output_dir + "/" + self.target + "_" + story_id + ".mp4"
-                    urllib.request.urlretrieve(url, end)
-
-        if counter > 0:
-            pc.printout(str(counter) + " target stories saved in output folder\n", pc.GREEN)
-        else:
-            pc.printout("Sorry! No results found :-(\n", pc.RED)
+        profile = Loader.Profile.from_username(loader.context, self.target)
+        loader.download_stories([profile])
 
     def get_people_tagged_by_user(self):
         pc.printout("Searching for users tagged by target...\n")
@@ -977,7 +934,7 @@ class Osintgram:
 
             return user
         except ClientError as e:
-            pc.printout('ClientError {0!s} (Code: {1:d}, Response: {2!s})'.format(e.msg, e.code, e.error_response), pc.RED)
+            pc.printout('ClientError {0!s} (Code: {1:d}, Response: {2!s})'.format(e.code, e.error_response), pc.RED)
             error = json.loads(e.error_response)
             if 'message' in error:
                 print(error['message'])
@@ -1015,6 +972,8 @@ class Osintgram:
     def login(self, u, p):
         try:
             client.login(u, p)
+            loader.login(u, p)
+
 
         except ClientError as e:
             pc.printout('ClientError {0!s} (Code: {1:d}, Response: {2!s})'.format(e.msg, e.code, e.error_response), pc.RED)
@@ -1053,7 +1012,7 @@ class Osintgram:
             pc.printout("Impossible to execute command: user has private profile\n", pc.RED)
             send = input("Do you want send a follow request? [Y/N]: ")
             if send.lower() == "y":
-                self.api.friendships_create(self.target_id)
+                client.user_follow(self.target_id)
                 print("Sent a follow request to target. Use this command after target accepting the request.")
 
             return True

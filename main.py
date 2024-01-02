@@ -17,7 +17,7 @@ except:
 
 
 def printlogo():
-    pc.printout(artwork.ascii_art, pc.YELLOW)
+    pc.printout(artwork.ascii_art, pc.RED)
     pc.printout("\nVersion 1.0 - Developed by Mohamad Mortada and Giuseppe Criscione\n\n", pc.YELLOW)
     pc.printout("Type 'list' to show all allowed commands\n")
 
