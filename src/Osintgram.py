@@ -475,7 +475,7 @@ class Osintgram:
         try:
             content = client.user_info_by_username(self.target).dict()
             
-
+            print(content)
             pc.printout("[ID] ", pc.GREEN)
             pc.printout(str(content['pk']) + '\n')
             pc.printout("[FULL NAME] ", pc.RED)
@@ -490,8 +490,26 @@ class Osintgram:
             pc.printout(str(content['is_business']) + '\n')
             pc.printout("[VERIFIED ACCOUNT] ", pc.CYAN)
             pc.printout(str(content['is_verified']) + '\n')
+            if 'public_email' in content and content['public_email']:
+                pc.printout("[EMAIL] ", pc.BLUE)
+                pc.printout(str(content['public_email']) + '\n')
             pc.printout("[HD PROFILE PIC] ", pc.GREEN)
             pc.printout(str(content['profile_pic_url']) + '\n')
+            if 'fb_page_call_to_action_id' in content and content['fb_page_call_to_action_id']: 
+                pc.printout("[FB PAGE] ", pc.RED)
+                pc.printout(str(content['connected_fb_page']) + '\n')
+            if 'whatsapp_number' in content and content['whatsapp_number']:
+                pc.printout("[WHATSAPP NUMBER] ", pc.GREEN)
+                pc.printout(str(content['whatsapp_number']) + '\n')
+            if 'city_name' in content and content['city_name']:
+                pc.printout("[CITY] ", pc.YELLOW)
+                pc.printout(str(content['city_name']) + '\n')
+            if 'address_street' in content and content['address_street']:
+                pc.printout("[ADDRESS STREET] ", pc.RED)
+                pc.printout(str(content['address_street']) + '\n')
+            if 'contact_phone_number' in content and content['contact_phone_number']:
+                pc.printout("[CONTACT PHONE NUMBER] ", pc.CYAN)
+                pc.printout(str(content['contact_phone_number']) + '\n')
             if self.jsonDump:
                 user = {
                     'id': content['pk'],
@@ -811,30 +829,25 @@ class Osintgram:
         ids = []
         username = []
         full_name = []
-        post = []
+        postList = []
         counter = 1
 
-        data = self.__get_feed__()
-
+        profile = Loader.Profile.from_username(loader.context, self.target)
+        posts = profile.get_posts()
         try:
-            for i in data:
-                if "usertags" in i:
-                    c = i.get('usertags').get('in')
-                    for cc in c:
-                        if cc.get('user').get('pk') not in ids:
-                            ids.append(cc.get('user').get('pk'))
-                            username.append(cc.get('user').get('username'))
-                            full_name.append(cc.get('user').get('full_name'))
-                            post.append(1)
-                        else:
-                            index = ids.index(cc.get('user').get('pk'))
-                            post[index] += 1
-                        counter = counter + 1
-        except AttributeError as ae:
-            pc.printout("\nERROR: an error occurred: ", pc.RED)
-            print(ae)
-            print("")
-            pass
+            for post in posts:
+                taggedUsers = post.tagged_users
+                for users in taggedUsers:
+                    profile = Loader.Profile.from_username(loader.context, users)
+                    ids.append(profile.userid)
+                    username.append(users)
+                    full_name.append(profile.full_name)
+                    postList.append(post.mediaid)
+                    # counter = counter + 1
+                    # sys.stdout.write("\rCatched %i" % counter)
+                    # sys.stdout.flush()
+        except KeyboardInterrupt:
+            posts.freeze()
 
         if len(ids) > 0:
             t = PrettyTable()
@@ -851,7 +864,7 @@ class Osintgram:
             tagged_list = []
 
             for i in range(len(ids)):
-                t.add_row([post[i], full_name[i], username[i], str(ids[i])])
+                t.add_row([postList[i], full_name[i], username[i], str(ids[i])])
 
                 if self.jsonDump:
                     tag = {
