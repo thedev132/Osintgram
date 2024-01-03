@@ -41,7 +41,7 @@ Supported:
 ✅ - propic          Download user's profile picture in user output folder 
 ✅ - stories         Download user's stories in user output folder 
 ✅ - highlights      Download user's highlights in user output folder 
-❌ - tagged          Get list of users tagged by target 
+✅ - tagged          Get list of users tagged by target 
 ❌ - wcommented      Get a list of user who commented target's photos 
 ❌ - wtagged         Get a list of user who tagged target 
 ```
