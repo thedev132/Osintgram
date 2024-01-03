@@ -416,22 +416,12 @@ class Osintgram:
         counter = 1
         texts = []
 
-        data = self.api.user_feed(str(self.target_id))
-        texts.extend(data.get('items', []))
+        profile = Loader.Profile.from_username(loader.context, self.target)
+        posts = profile.get_posts()
 
-        next_max_id = data.get('next_max_id')
-        while next_max_id:
-            results = self.api.user_feed(str(self.target_id), max_id=next_max_id)
-            texts.extend(results.get('items', []))
-            next_max_id = results.get('next_max_id')
-
-        for post in texts:
-            if post['caption'] is not None:
-                caption = post['caption']['text']
-                for s in caption.split():
-                    if s.startswith('#'):
-                        hashtags.append(s.encode('UTF-8'))
-                        counter += 1
+        for post in posts:
+            hashtags.append('#' + post.caption_hashtags)
+            counter += 1
 
         if len(hashtags) > 0:
             hashtag_counter = {}
@@ -540,10 +530,11 @@ class Osintgram:
         like_counter = 0
         posts = 0
 
-        data = self.__get_feed__()
+        profile = Loader.Profile.from_username(loader.context, self.target)
+        posts = profile.get_posts()
 
-        for post in data:
-            like_counter += post['like_count']
+        for post in posts:
+            like_counter += post.likes
             posts += 1
 
         if self.writeFile:

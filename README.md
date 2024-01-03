@@ -61,7 +61,7 @@ You can find detailed commands usage [here](doc/COMMANDS.md).
 
 1. Fork/Clone/Download this repo
 
-    `git clone https://github.com/Datalux/Osintgram.git`
+    `git clone https://github.com/thedev132/Osintgram.git`
 
 2. Navigate to the directory
 
