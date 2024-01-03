@@ -413,51 +413,49 @@ class Osintgram:
         pc.printout("Searching for target hashtags...\n")
 
         hashtags = []
+        hashtagsDict = {}
         counter = 1
-        texts = []
 
         profile = Loader.Profile.from_username(loader.context, self.target)
         posts = profile.get_posts()
 
         for post in posts:
-            hashtags.append('#' + post.caption_hashtags)
-            counter += 1
-
-        if len(hashtags) > 0:
-            hashtag_counter = {}
-
-            for i in hashtags:
-                if i in hashtag_counter:
-                    hashtag_counter[i] += 1
+            for hashtag in post.caption_hashtags:
+                hashtags.append('#' + hashtag)
+                if hashtag in hashtagsDict:
+                    hashtagsDict[hashtag] += 1
                 else:
-                    hashtag_counter[i] = 1
+                    hashtagsDict[hashtag] = 1
+                counter += 1
 
-            ssort = sorted(hashtag_counter.items(), key=lambda value: value[1], reverse=True)
+        t = PrettyTable(['Hashtag', 'Count'])
+        t.align["Hastag"] = "l"
+        t.align["Count"] = "l"
 
-            file = None
-            json_data = {}
-            hashtags_list = []
+        for node in hashtagsDict:
+            t.add_row([str(node), str(hashtagsDict[node])])
 
-            if self.writeFile:
-                file_name = self.output_dir + "/" + self.target + "_hashtags.txt"
-                file = open(file_name, "w")
+        if len(hashtags) > 0:  
+            pc.printout("We found " + str(counter) + " hashtags\n", pc.GREEN)
 
-            for k, v in ssort:
-                hashtag = str(k.decode('utf-8'))
-                print(str(v) + ". " + hashtag)
-                if self.writeFile:
-                    file.write(str(v) + ". " + hashtag + "\n")
-                if self.jsonDump:
-                    hashtags_list.append(hashtag)
+            print(t)
 
-            if file is not None:
-                file.close()
+            # file = None
+            # json_data = {}
+            # hashtags_list = []
 
-            if self.jsonDump:
-                json_data['hashtags'] = hashtags_list
-                json_file_name = self.output_dir + "/" + self.target + "_hashtags.json"
-                with open(json_file_name, 'w') as f:
-                    json.dump(json_data, f)
+            # if self.writeFile:
+            #     file_name = self.output_dir + "/" + self.target + "_hashtags.txt"
+            #     file = open(file_name, "w")
+
+            # if file is not None:
+            #     file.close()
+
+            # if self.jsonDump:
+            #     json_data['hashtags'] = hashtags_list
+            #     json_file_name = self.output_dir + "/" + self.target + "_hashtags.json"
+            #     with open(json_file_name, 'w') as f:
+            #         json.dump(json_data, f)
         else:
             pc.printout("Sorry! No results found :-(\n", pc.RED)
 
@@ -465,7 +463,6 @@ class Osintgram:
         try:
             content = client.user_info_by_username(self.target).dict()
             
-            print(content)
             pc.printout("[ID] ", pc.GREEN)
             pc.printout(str(content['pk']) + '\n')
             pc.printout("[FULL NAME] ", pc.RED)
@@ -528,14 +525,14 @@ class Osintgram:
         pc.printout("Searching for target total likes...\n")
 
         like_counter = 0
-        posts = 0
+        posts_counter = 0
 
         profile = Loader.Profile.from_username(loader.context, self.target)
         posts = profile.get_posts()
 
         for post in posts:
             like_counter += post.likes
-            posts += 1
+            posts_counter += 1
 
         if self.writeFile:
             file_name = self.output_dir + "/" + self.target + "_likes.txt"
@@ -553,7 +550,7 @@ class Osintgram:
                 json.dump(json_data, f)
 
         pc.printout(str(like_counter), pc.MAGENTA)
-        pc.printout(" likes in " + str(posts) + " posts\n")
+        pc.printout(" likes in " + str(posts_counter) + " posts\n")
 
     def get_media_type(self):
         if self.check_private_profile():

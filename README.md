@@ -32,9 +32,9 @@ Supported:
 ❌ - fwingsemail     Get email of users followed by target 
 ❌ - fwersnumber     Get phone number of target followers 
 ❌ - fwingsnumber    Get phone number of users followed by target 
-❌ - hashtags        Get hashtags used by target 
+✅ - hashtags        Get hashtags used by target 
 ✅ - info            Get target info 
-❌ - likes           Get total likes of target's posts 
+✅ - likes           Get total likes of target's posts 
 ❌ - mediatype       Get user's posts type (photo or video) 
 ❌ - photodes        Get description of target's photos 
 ✅ - photos          Download user's photos in user output folder 
@@ -85,10 +85,6 @@ You can find detailed commands usage [here](doc/COMMANDS.md).
 
     * As an interactive prompt `python3 main.py <target username>`
     * Or execute your command straight away `python3 main.py <target username> --command <command>`
-    
-### Use Osintgram v2 (beta)
-You can use Osintgram2 beta just switching to `v2` [branch](https://github.com/Datalux/Osintgram/tree/v2).
-The v2 has some improvements and faster with a new command execution interface. Try it just running `git checkout v2`.
 
 ## Docker Quick Start 🐳
 
