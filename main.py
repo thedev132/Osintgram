@@ -22,6 +22,7 @@ def printlogo():
     pc.printout("Type 'list' to show all allowed commands\n")
 
 def cmdlist():
+    pc.printout("NOT ALL COMMANDS ARE SUPPORTED YET CHECK README FOR A LIST OF SUPPORTED COMMANDS\n", pc.RED)
     pc.printout("captions\t")
     print("Get target's photos captions")
     pc.printout("commentdata\t")
