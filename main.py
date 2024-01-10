@@ -7,13 +7,13 @@ from src import artwork
 import sys
 import signal
 
-is_windows = False
+#is_windows = False
 
-try:
-    import gnureadline  
-except: 
-    is_windows = True
-    import pyreadline3 as pyreadline
+#try:
+    #import gnureadline  
+#except: 
+    #is_windows = True
+    #import pyreadline3 as pyreadline
 
 
 def printlogo():
@@ -87,12 +87,12 @@ def _quit():
 
 
 signal.signal(signal.SIGINT, signal_handler)
-if is_windows:
-    pyreadline.Readline().parse_and_bind("tab: complete")
-    pyreadline.Readline().set_completer(completer)
-else:
-    gnureadline.parse_and_bind("tab: complete")
-    gnureadline.set_completer(completer)
+#if is_windows:
+    #pyreadline.Readline().parse_and_bind("tab: complete")
+    #pyreadline.Readline().set_completer(completer)
+#else:
+    #gnureadline.parse_and_bind("tab: complete")
+    #gnureadline.set_completer(completer)
 
 parser = argparse.ArgumentParser(description='Osintgram is a OSINT tool on Instagram. It offers an interactive shell '
                                              'to perform analysis on Instagram account of any users by its nickname ')
@@ -141,12 +141,12 @@ commands = {
 
 
 signal.signal(signal.SIGINT, signal_handler)
-if is_windows:
-    pyreadline.Readline().parse_and_bind("tab: complete")
-    pyreadline.Readline().set_completer(completer)
-else:
-    gnureadline.parse_and_bind("tab: complete")
-    gnureadline.set_completer(completer)
+#if is_windows:
+    #pyreadline.Readline().parse_and_bind("tab: complete")
+    #pyreadline.Readline().set_completer(completer)
+#else:
+    #gnureadline.parse_and_bind("tab: complete")
+    #gnureadline.set_completer(completer)
 
 if not args.command:
     printlogo()
@@ -158,12 +158,12 @@ while True:
         _cmd = commands.get(args.command)
     else:
         signal.signal(signal.SIGINT, signal_handler)
-        if is_windows:
-            pyreadline.Readline().parse_and_bind("tab: complete")
-            pyreadline.Readline().set_completer(completer)
-        else:
-            gnureadline.parse_and_bind("tab: complete")
-            gnureadline.set_completer(completer)
+        #if is_windows:
+            #pyreadline.Readline().parse_and_bind("tab: complete")
+            #pyreadline.Readline().set_completer(completer)
+        #else:
+            #gnureadline.parse_and_bind("tab: complete")
+            #gnureadline.set_completer(completer)
         pc.printout("Run a command: ", pc.YELLOW)
         cmd = input()
 
