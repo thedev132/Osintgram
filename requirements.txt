@@ -3,7 +3,5 @@ requests-toolbelt==0.9.1
 geopy>=2.0.0
 prettytable==0.7.2
 instagrapi==1.19.7
-instaloader==4.10.2
-gnureadline>=8.0.0; platform_system != "Windows"
-pyreadline3==3.4.1; platform_system == "Windows"
+instaloader==4.10.3
 Pillow==10.2.0

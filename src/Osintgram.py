@@ -414,14 +414,13 @@ class Osintgram:
 
         hashtags = []
         hashtagsDict = {}
-        counter = 1
+        counter = 0
 
-        profile = Loader.Profile.from_username(loader.context, self.target)
-        posts = profile.get_posts()
-
-        for post in posts:
-            for hashtag in post.caption_hashtags:
-                hashtags.append('#' + hashtag)
+        medias = client.user_medias(str(self.target_id))
+        for post in medias:
+            caption = client.media_info(post.pk).dict()['caption_text']
+            hashtags = [word for word in caption.split() if word.startswith('#')]
+            for hashtag in hashtags:
                 if hashtag in hashtagsDict:
                     hashtagsDict[hashtag] += 1
                 else:
@@ -527,11 +526,11 @@ class Osintgram:
         like_counter = 0
         posts_counter = 0
 
-        profile = Loader.Profile.from_username(loader.context, self.target)
-        posts = profile.get_posts()
+        medias = client.user_medias(str(self.target_id))
 
-        for post in posts:
-            like_counter += post.likes
+        for post in medias:
+            likes = client.media_info(post.pk).dict()['like_count']
+            like_counter += likes
             posts_counter += 1
 
         if self.writeFile:
@@ -550,7 +549,10 @@ class Osintgram:
                 json.dump(json_data, f)
 
         pc.printout(str(like_counter), pc.MAGENTA)
-        pc.printout(" likes in " + str(posts_counter) + " posts\n")
+        if like_counter == 1:
+            pc.printout(" like in " + str(posts_counter) + " post\n")
+        else:
+            pc.printout(" likes in " + str(posts_counter) + " posts\n")
 
     def get_media_type(self):
         if self.check_private_profile():
@@ -791,9 +793,15 @@ class Osintgram:
 
         
     def get_user_propic(self):
-        profile = Loader.Profile.from_username(loader.context, self.target)
-        loader.download_profilepic(profile)
-
+        userInfo = client.user_info_by_username(self.target).dict()
+        url = userInfo['profile_pic_url']
+        response = requests.get(url)
+        #path is the root directory/username of the target folder 
+        path = self.target + "/"
+        if not os.path.exists(path):
+            os.makedirs(path)
+        open(path + 'propic.jpg', 'wb').write(response.content)
+        print("🎉 Profile picture saved in \"" + path + "propic.jpg\" 😄")
     def get_user_stories(self):
         if self.check_private_profile():
             return
@@ -925,8 +933,20 @@ class Osintgram:
 
     def login(self, u, p):
         try:
-            client.login(u, p)
-            loader.login(u, p)
+            # if file session.json exists, load it, else dump it, the file should be in the root direcotry
+            if os.path.isfile('session.json'):
+                client.load_settings('session.json')
+                client.login(u, p)
+                print("Loaded session from session.json")
+            else:
+                client.login(u, p)
+                client.dump_settings('session.json')
+            if os.path.isfile('session_loader.json'):
+                loader.load_session_from_file(self.target, "session_loader.json")
+                loader.login(u, p)  
+            else:
+                loader.login(u, p)  
+                loader.save_session_to_file("session_loader.json")
 
 
         except ClientError as e:
@@ -934,6 +954,7 @@ class Osintgram:
             error = json.loads(e.error_response)
             pc.printout(error['message'], pc.RED)
             pc.printout(": ", pc.RED)
+            
             pc.printout(e.msg, pc.RED)
             pc.printout("\n")
             if 'challenge' in error:
@@ -976,48 +997,33 @@ class Osintgram:
         if self.check_private_profile():
             return
 
-        followers = []
-        
-        try:
+        _followers = []
+        followersEmail = []
 
-            pc.printout("Searching for emails of target followers... this can take a few minutes\n")
 
-            rank_token = AppClient.generate_uuid()
-            data = self.api.user_followers(str(self.target_id), rank_token=rank_token)
+        pc.printout("Searching for emails of target followers... this can take a few minutes\n")
 
-            for user in data.get('users', []):
+        data = client.user_followers(str(self.target_id))
+        _followers.extend(data.values())
+        for user in _followers:
+            userDict = user.dict()
+            if 'email' in userDict and userDict['email']:
                 u = {
-                    'id': user['pk'],
-                    'username': user['username'],
-                    'full_name': user['full_name']
+                    'id': userDict['pk'],
+                    'username': userDict['username'],
+                    'full_name': userDict['full_name'],
+                    'email': userDict['public_email']
                 }
-                followers.append(u)
-
-            next_max_id = data.get('next_max_id')
-            while next_max_id:
-                sys.stdout.write("\rCatched %i followers email" % len(followers))
-                sys.stdout.flush()
-                results = self.api.user_followers(str(self.target_id), rank_token=rank_token, max_id=next_max_id)
-                
-                for user in results.get('users', []):
-                    u = {
-                        'id': user['pk'],
-                        'username': user['username'],
-                        'full_name': user['full_name']
-                    }
-                    followers.append(u)
-
-                next_max_id = results.get('next_max_id')
+                followersEmail.append(u)
             
-            print("\n")
-
-            results = []
-            
+        print("\n")
+        
+        if len(followersEmail) > 0:
             pc.printout("Do you want to get all emails? y/n: ", pc.YELLOW)
             value = input()
             
             if value == str("y") or value == str("yes") or value == str("Yes") or value == str("YES"):
-                value = len(followers)
+                value = len(followersEmail)
             elif value == str(""):
                 print("\n")
                 return
@@ -1037,20 +1043,6 @@ class Osintgram:
                 print("\n")
                 return
 
-            for follow in followers:
-                user = self.api.user_info(str(follow['id']))
-                if 'public_email' in user['user'] and user['user']['public_email']:
-                    follow['email'] = user['user']['public_email']
-                    if len(results) > value:
-                        break
-                    results.append(follow)
-
-        except ClientThrottledError  as e:
-            pc.printout("\nError: Instagram blocked the requests. Please wait a few minutes before you try again.", pc.RED)
-            pc.printout("\n")
-
-        if len(results) > 0:
-
             t = PrettyTable(['ID', 'Username', 'Full Name', 'Email'])
             t.align["ID"] = "l"
             t.align["Username"] = "l"
@@ -1059,7 +1051,7 @@ class Osintgram:
 
             json_data = {}
 
-            for node in results:
+            for node in followersEmail:
                 t.add_row([str(node['id']), node['username'], node['full_name'], node['email']])
 
             if self.writeFile:
@@ -1069,7 +1061,7 @@ class Osintgram:
                 file.close()
 
             if self.jsonDump:
-                json_data['followers_email'] = results
+                json_data['followers_email'] = followersEmail
                 json_file_name = self.output_dir + "/" + self.target + "_fwersemail.json"
                 with open(json_file_name, 'w') as f:
                     json.dump(json_data, f)
@@ -1078,49 +1070,40 @@ class Osintgram:
         else:
             pc.printout("Sorry! No results found :-(\n", pc.RED)
 
+
+
     def get_fwingsemail(self):
         if self.check_private_profile():
             return
 
-        followings = []
+        _followings = []
+        followingsEmail = []
 
-        try:
 
-            pc.printout("Searching for emails of users followed by target... this can take a few minutes\n")
+        pc.printout("Searching for emails of target followers... this can take a few minutes\n")
 
-            rank_token = AppClient.generate_uuid()
-            data = self.api.user_following(str(self.target_id), rank_token=rank_token)
-
-            for user in data.get('users', []):
+        data = client.user_following(str(self.target_id))
+        _followings.extend(data.values())
+        for user in _followings:
+            userDict = user.dict()
+            userInfo = client.user_info_by_username(userDict['username']).dict()
+            if userInfo['public_email']:
                 u = {
-                    'id': user['pk'],
-                    'username': user['username'],
-                    'full_name': user['full_name']
+                    'id': userDict['pk'],
+                    'username': userDict['username'],
+                    'full_name': userDict['full_name'],
+                    'email': userInfo['public_email']
                 }
-                followings.append(u)
-
-            next_max_id = data.get('next_max_id')
+                followingsEmail.append(u)
             
-            while next_max_id:
-                results = self.api.user_following(str(self.target_id), rank_token=rank_token, max_id=next_max_id)
-
-                for user in results.get('users', []):
-                    u = {
-                        'id': user['pk'],
-                        'username': user['username'],
-                        'full_name': user['full_name']
-                    }
-                    followings.append(u)
-
-                next_max_id = results.get('next_max_id')
+        print("\n")
         
-            results = []
-            
+        if len(followingsEmail) > 0:
             pc.printout("Do you want to get all emails? y/n: ", pc.YELLOW)
             value = input()
             
             if value == str("y") or value == str("yes") or value == str("Yes") or value == str("YES"):
-                value = len(followings)
+                value = len(followingsEmail)
             elif value == str(""):
                 print("\n")
                 return
@@ -1140,23 +1123,6 @@ class Osintgram:
                 print("\n")
                 return
 
-            for follow in followings:
-                sys.stdout.write("\rCatched %i followings email" % len(results))
-                sys.stdout.flush()
-                user = self.api.user_info(str(follow['id']))
-                if 'public_email' in user['user'] and user['user']['public_email']:
-                    follow['email'] = user['user']['public_email']
-                    if len(results) > value:
-                        break
-                    results.append(follow)
-        
-        except ClientThrottledError as e:
-            pc.printout("\nError: Instagram blocked the requests. Please wait a few minutes before you try again.", pc.RED)
-            pc.printout("\n")
-        
-        print("\n")
-
-        if len(results) > 0:
             t = PrettyTable(['ID', 'Username', 'Full Name', 'Email'])
             t.align["ID"] = "l"
             t.align["Username"] = "l"
@@ -1165,7 +1131,7 @@ class Osintgram:
 
             json_data = {}
 
-            for node in results:
+            for node in followingsEmail:
                 t.add_row([str(node['id']), node['username'], node['full_name'], node['email']])
 
             if self.writeFile:
@@ -1175,7 +1141,7 @@ class Osintgram:
                 file.close()
 
             if self.jsonDump:
-                json_data['followings_email'] = results
+                json_data['followings_email'] = followingsEmail
                 json_file_name = self.output_dir + "/" + self.target + "_fwingsemail.json"
                 with open(json_file_name, 'w') as f:
                     json.dump(json_data, f)

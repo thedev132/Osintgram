@@ -3,5 +3,4 @@ requests-toolbelt==0.9.1
 geopy>=2.0.0
 prettytable==0.7.2
 instagrapi
-instaloader
-gnureadline>=8.0.0
+instaloader==4.10.3
