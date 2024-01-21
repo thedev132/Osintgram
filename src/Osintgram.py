@@ -933,7 +933,7 @@ class Osintgram:
 
     def login(self, u, p):
         try:
-            # if file session.json exists, load it, else dump it, the file should be in the root direcotry
+            # if file session.json exists, load it, else dump it, the file should be in the root directory
             if os.path.isfile('session.json'):
                 userSettings = client.load_settings('session.json')
                 client.login_by_sessionid(userSettings["authorization_data"]["sessionid"])
