@@ -935,15 +935,14 @@ class Osintgram:
         try:
             # if file session.json exists, load it, else dump it, the file should be in the root direcotry
             if os.path.isfile('session.json'):
-                client.load_settings('session.json')
-                client.login(u, p)
+                userSettings = client.load_settings('session.json')
+                client.login_by_sessionid(userSettings["authorization_data"]["sessionid"])
                 print("Loaded session from session.json")
             else:
                 client.login(u, p)
                 client.dump_settings('session.json')
             if os.path.isfile('session_loader.json'):
-                loader.load_session_from_file(self.target, "session_loader.json")
-                loader.login(u, p)  
+                loader.load_session_from_file(u, "session_loader.json")
             else:
                 loader.login(u, p)  
                 loader.save_session_to_file("session_loader.json")
@@ -1007,12 +1006,13 @@ class Osintgram:
         _followers.extend(data.values())
         for user in _followers:
             userDict = user.dict()
+            userInfo = client.user_info_by_username(userDict['username']).dict()
             if 'email' in userDict and userDict['email']:
                 u = {
                     'id': userDict['pk'],
                     'username': userDict['username'],
                     'full_name': userDict['full_name'],
-                    'email': userDict['public_email']
+                    'email': userInfo['public_email']
                 }
                 followersEmail.append(u)
             
@@ -1083,10 +1083,12 @@ class Osintgram:
         pc.printout("Searching for emails of target followers... this can take a few minutes\n")
 
         data = client.user_following(str(self.target_id))
+        print(data)
         _followings.extend(data.values())
         for user in _followings:
             userDict = user.dict()
             userInfo = client.user_info_by_username(userDict['username']).dict()
+            print(userInfo)
             if userInfo['public_email']:
                 u = {
                     'id': userDict['pk'],
