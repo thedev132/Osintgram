@@ -3,4 +3,4 @@ requests-toolbelt==1.0.0
 geopy>=2.0.0
 prettytable==3.9.0
 instagrapi
-instaloader==4.10.3
+instaloader==4.11
